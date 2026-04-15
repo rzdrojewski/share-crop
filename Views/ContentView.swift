@@ -55,11 +55,13 @@ struct ContentView: View {
             }
             .labelsHidden()
             .pickerStyle(.menu)
+            .disabled(model.isChoosingRegion)
 
             HStack(spacing: 12) {
                 Button("Refresh Displays") {
                     model.refreshDisplays()
                 }
+                .disabled(model.isChoosingRegion)
 
                 if model.hasScreenAccess {
                     Text("Screen access granted")
@@ -68,6 +70,7 @@ struct ContentView: View {
                     Button("Grant Screen Access") {
                         model.requestScreenAccess()
                     }
+                    .disabled(model.isChoosingRegion)
                 }
             }
         }
@@ -106,7 +109,7 @@ struct ContentView: View {
                 Button("Open Share Window") {
                     model.showShareWindow()
                 }
-                .disabled(model.selection == nil)
+                .disabled(model.selection == nil || model.isChoosingRegion)
 
                 Button(model.isSharing ? "Pause Capture" : "Start Capture") {
                     Task {
@@ -117,7 +120,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                .disabled(model.selection == nil)
+                .disabled(model.selection == nil || model.isChoosingRegion)
             }
 
             Text(model.statusMessage)

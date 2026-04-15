@@ -81,10 +81,10 @@ Define and implement the simplest safe end-to-end behavior when the user retakes
 
 ### Acceptance criteria
 
-- [ ] Retaking a region while sharing is active follows one explicit, stable behavior rather than an undefined transition.
-- [ ] The user can complete the retake flow without corrupting the saved selection state.
-- [ ] After the retake flow completes, the app returns to a valid sharing state using the confirmed region or the prior region if canceled.
-- [ ] The implementation does not reintroduce unstable overlay lifecycle behavior during active capture scenarios.
+- [x] Retaking a region while sharing is active follows one explicit, stable behavior rather than an undefined transition.
+- [x] The user can complete the retake flow without corrupting the saved selection state.
+- [x] After the retake flow completes, the app returns to a valid sharing state using the confirmed region or the prior region if canceled.
+- [x] The implementation does not reintroduce unstable overlay lifecycle behavior during active capture scenarios.
 
 ---
 

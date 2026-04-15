@@ -8,6 +8,11 @@ final class AppModel: ObservableObject {
         static let selectedDisplayID = "selectedDisplayID"
     }
 
+    private struct ActiveRetakeSession {
+        let previousSelection: CaptureRegion
+        let wasSharing: Bool
+    }
+
     @Published private(set) var displays: [DisplayInfo] = []
     @Published var selectedDisplayID: CGDirectDisplayID?
     @Published private(set) var selection: CaptureRegion?
@@ -20,6 +25,7 @@ final class AppModel: ObservableObject {
     let recorder = ScreenRecorder()
     private lazy var previewWindowController = SharePreviewWindowController()
     private var overlaySelectionController: OverlaySelectionWindowController?
+    private var activeRetakeSession: ActiveRetakeSession?
 
     init() {
         selectedDisplayID = Self.loadPersistedDisplayID()
@@ -98,20 +104,25 @@ final class AppModel: ObservableObject {
             return
         }
 
-        isChoosingRegion = true
-        statusMessage = "Drag on the selected display to define the shared area. Press Enter to confirm or Esc to cancel."
+        if isSharing, let previousSelection = selection {
+            isChoosingRegion = true
+            activeRetakeSession = ActiveRetakeSession(previousSelection: previousSelection, wasSharing: true)
+            statusMessage = "Pausing capture so you can retake the shared region."
+            previewWindowController.showWaitingState()
 
-        let controller = OverlaySelectionWindowController(
-            display: display,
-            initialSelection: selection
-        ) { [weak self] result in
             Task { @MainActor [weak self] in
-                self?.finishRegionSelection(result)
+                guard let self else { return }
+
+                await self.recorder.stopCapture()
+                self.isSharing = false
+                self.presentSelectionOverlay(on: display)
+                self.statusMessage = "Capture paused while you retake the region. Press Enter to confirm or Esc to keep the previous region."
             }
+            return
         }
 
-        overlaySelectionController = controller
-        controller.present()
+        presentSelectionOverlay(on: display)
+        statusMessage = "Drag on the selected display to define the shared area. Press Enter to confirm or Esc to cancel."
     }
 
     func startSharing() async throws {
@@ -187,18 +198,90 @@ final class AppModel: ObservableObject {
         return CGDirectDisplayID(defaults.integer(forKey: StorageKeys.selectedDisplayID))
     }
 
+    private func presentSelectionOverlay(on display: DisplayInfo) {
+        isChoosingRegion = true
+
+        let controller = OverlaySelectionWindowController(
+            display: display,
+            initialSelection: selection
+        ) { [weak self] result in
+            Task { @MainActor [weak self] in
+                self?.finishRegionSelection(result)
+            }
+        }
+
+        overlaySelectionController = controller
+        controller.present()
+    }
+
+    private func display(for displayID: CGDirectDisplayID) -> DisplayInfo? {
+        displays.first(where: { $0.id == displayID })
+    }
+
     private func finishRegionSelection(_ result: OverlaySelectionWindowController.Result) {
         overlaySelectionController = nil
         isChoosingRegion = false
+        let retakeSession = activeRetakeSession
+        activeRetakeSession = nil
 
         switch result {
         case .confirmed(let rect):
             selection = CaptureRegion(displayID: rect.displayID, globalRect: rect.globalRect.standardized)
-            statusMessage = "Region captured. Open the share window, then start capture when you're ready to share it."
+            if let retakeSession, retakeSession.wasSharing {
+                statusMessage = "Region updated. Restarting capture with the new selection."
+                resumeSharing(with: selection, canceledRetake: false)
+            } else {
+                statusMessage = "Region captured. Open the share window, then start capture when you're ready to share it."
+            }
         case .canceled:
-            statusMessage = selection == nil
-                ? "Choose the area you want to mirror into the share window."
-                : "Region locked. Start or resume the share window."
+            if let retakeSession {
+                selection = retakeSession.previousSelection
+
+                if retakeSession.wasSharing {
+                    statusMessage = "Retake canceled. Restarting capture with the previous region."
+                    resumeSharing(with: retakeSession.previousSelection, canceledRetake: true)
+                } else {
+                    statusMessage = "Region locked. Start or resume the share window."
+                }
+            } else {
+                statusMessage = selection == nil
+                    ? "Choose the area you want to mirror into the share window."
+                    : "Region locked. Start or resume the share window."
+            }
+        }
+    }
+
+    private func resumeSharing(with region: CaptureRegion?, canceledRetake: Bool) {
+        guard let region else {
+            statusMessage = "Choose a region before resuming capture."
+            return
+        }
+
+        guard let display = display(for: region.displayID) else {
+            shareWindowAvailable = false
+            statusMessage = "The display for the saved region is no longer available."
+            return
+        }
+
+        previewWindowController.showWaitingState()
+        previewWindowController.show(region: region)
+        shareWindowAvailable = true
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            do {
+                try await self.recorder.startCapture(display: display, selection: region)
+                self.isSharing = true
+                self.statusMessage = canceledRetake
+                    ? "Retake canceled. Capture resumed with the previous region."
+                    : "Retake complete. Capture resumed with the updated region."
+            } catch {
+                self.isSharing = false
+                self.statusMessage = canceledRetake
+                    ? "Retake canceled, but capture could not resume: \(error.localizedDescription)"
+                    : "Retake confirmed, but capture could not resume: \(error.localizedDescription)"
+            }
         }
     }
 }
