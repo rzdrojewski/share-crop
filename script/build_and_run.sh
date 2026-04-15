@@ -13,13 +13,13 @@ APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
+CODE_SIGNATURE_DIR="$APP_CONTENTS/_CodeSignature"
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 swift build
 BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
 
-rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
@@ -43,12 +43,17 @@ cat >"$INFO_PLIST" <<PLIST
   <string>NSApplication</string>
   <key>NSCameraUsageDescription</key>
   <string>This app does not use the camera.</string>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>ScreenShare needs screen recording access to mirror a selected crop into a shareable window.</string>
 </dict>
 </plist>
 PLIST
 
+rm -rf "$CODE_SIGNATURE_DIR"
+/usr/bin/codesign --force --deep --sign - "$APP_BUNDLE"
+
 open_app() {
-  /usr/bin/open -n "$APP_BUNDLE"
+  /usr/bin/open "$APP_BUNDLE"
 }
 
 case "$MODE" in

@@ -4,6 +4,10 @@ import Foundation
 
 @MainActor
 final class AppModel: ObservableObject {
+    private enum StorageKeys {
+        static let selectedDisplayID = "selectedDisplayID"
+    }
+
     @Published private(set) var displays: [DisplayInfo] = []
     @Published var selectedDisplayID: CGDirectDisplayID?
     @Published private(set) var selection: CaptureRegion?
@@ -18,6 +22,7 @@ final class AppModel: ObservableObject {
     private lazy var previewWindowController = SharePreviewWindowController()
 
     init() {
+        selectedDisplayID = Self.loadPersistedDisplayID()
         refreshDisplays()
         refreshPermissionStatus()
 
@@ -34,9 +39,18 @@ final class AppModel: ObservableObject {
     func refreshDisplays() {
         displays = DisplayInfo.currentDisplays()
 
-        if selectedDisplay == nil {
-            selectedDisplayID = displays.first?.id
+        if let selectedDisplayID, displays.contains(where: { $0.id == selectedDisplayID }) {
+            return
         }
+
+        let fallbackDisplayID = displays.first?.id
+        selectedDisplayID = fallbackDisplayID
+        Self.persistDisplayID(fallbackDisplayID)
+    }
+
+    func setSelectedDisplayID(_ displayID: CGDirectDisplayID?) {
+        selectedDisplayID = displayID
+        Self.persistDisplayID(displayID)
     }
 
     func refreshPermissionStatus() {
@@ -165,5 +179,24 @@ final class AppModel: ObservableObject {
         Task { @MainActor in
             try? await startSharing()
         }
+    }
+
+    private static func persistDisplayID(_ displayID: CGDirectDisplayID?) {
+        let defaults = UserDefaults.standard
+        guard let displayID else {
+            defaults.removeObject(forKey: StorageKeys.selectedDisplayID)
+            return
+        }
+
+        defaults.set(UInt32(displayID), forKey: StorageKeys.selectedDisplayID)
+    }
+
+    private static func loadPersistedDisplayID() -> CGDirectDisplayID? {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: StorageKeys.selectedDisplayID) != nil else {
+            return nil
+        }
+
+        return CGDirectDisplayID(defaults.integer(forKey: StorageKeys.selectedDisplayID))
     }
 }

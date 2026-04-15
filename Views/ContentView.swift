@@ -54,7 +54,7 @@ struct ContentView: View {
 
             Picker("Display", selection: Binding(
                 get: { model.selectedDisplayID ?? 0 },
-                set: { model.selectedDisplayID = $0 }
+                set: { model.setSelectedDisplayID($0) }
             )) {
                 ForEach(model.displays) { display in
                     Text(display.description).tag(display.id)

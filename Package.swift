@@ -16,6 +16,8 @@ let package = Package(
             exclude: [
                 ".codex",
                 ".git",
+                "README.md",
+                "docs",
                 "dist",
                 "script"
             ],
