@@ -16,10 +16,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var isChoosingRegion = false
     @Published private(set) var isSharing = false
     @Published private(set) var shareWindowAvailable = false
-    @Published var selectionDraft: SelectionDraft?
 
     let recorder = ScreenRecorder()
     private lazy var previewWindowController = SharePreviewWindowController()
+    private var overlaySelectionController: OverlaySelectionWindowController?
 
     init() {
         selectedDisplayID = Self.loadPersistedDisplayID()
@@ -82,7 +82,7 @@ final class AppModel: ObservableObject {
             : "Screen recording access is required. macOS may need you to enable it in System Settings."
     }
 
-    func chooseRegion() async {
+    func chooseRegion() {
         guard hasScreenAccess else {
             statusMessage = "Grant screen recording access before choosing a region."
             return
@@ -93,38 +93,25 @@ final class AppModel: ObservableObject {
             return
         }
 
-        isChoosingRegion = true
-        defer { isChoosingRegion = false }
-
-        let cgImage = if AppEnvironment.isSmokeTest {
-            MockCaptureFactory.makeImage(size: display.frame.size)
-        } else {
-            CGDisplayCreateImage(display.id)
-        }
-
-        guard let cgImage else {
-            statusMessage = "Unable to snapshot the selected display."
+        guard overlaySelectionController == nil else {
+            statusMessage = "Finish the current region selection before opening another overlay."
             return
         }
 
-        let image = NSImage(cgImage: cgImage, size: NSSize(width: display.frame.width, height: display.frame.height))
-        selectionDraft = SelectionDraft(display: display, image: image)
-        statusMessage = "Drag a region inside the preview, then confirm the crop."
-    }
+        isChoosingRegion = true
+        statusMessage = "Drag on the selected display to define the shared area. Press Enter to confirm or Esc to cancel."
 
-    func confirmSelection(_ rect: CGRect) {
-        guard let draft = selectionDraft else { return }
+        let controller = OverlaySelectionWindowController(
+            display: display,
+            initialSelection: selection
+        ) { [weak self] result in
+            Task { @MainActor [weak self] in
+                self?.finishRegionSelection(result)
+            }
+        }
 
-        selection = CaptureRegion(displayID: draft.display.id, globalRect: rect.standardized)
-        selectionDraft = nil
-        statusMessage = "Region captured. Open the share window, then start capture when you're ready to share it."
-    }
-
-    func cancelSelectionDraft() {
-        selectionDraft = nil
-        statusMessage = selection == nil
-            ? "Choose the area you want to mirror into the share window."
-            : "Region locked. Start or resume the share window."
+        overlaySelectionController = controller
+        controller.present()
     }
 
     func startSharing() async throws {
@@ -198,5 +185,20 @@ final class AppModel: ObservableObject {
         }
 
         return CGDirectDisplayID(defaults.integer(forKey: StorageKeys.selectedDisplayID))
+    }
+
+    private func finishRegionSelection(_ result: OverlaySelectionWindowController.Result) {
+        overlaySelectionController = nil
+        isChoosingRegion = false
+
+        switch result {
+        case .confirmed(let rect):
+            selection = CaptureRegion(displayID: rect.displayID, globalRect: rect.globalRect.standardized)
+            statusMessage = "Region captured. Open the share window, then start capture when you're ready to share it."
+        case .canceled:
+            statusMessage = selection == nil
+                ? "Choose the area you want to mirror into the share window."
+                : "Region locked. Start or resume the share window."
+        }
     }
 }

@@ -8,13 +8,6 @@ struct ContentView: View {
             header
             displaySection
             regionSection
-            if let draft = model.selectionDraft {
-                SelectionEditorView(
-                    draft: draft,
-                    onCancel: { model.cancelSelectionDraft() },
-                    onConfirm: { rect in model.confirmSelection(rect) }
-                )
-            }
             previewSection
             actionSection
             footer
@@ -96,9 +89,7 @@ struct ContentView: View {
             }
 
             Button(model.selection == nil ? "Choose Region" : "Retake Region") {
-                Task {
-                    await model.chooseRegion()
-                }
+                model.chooseRegion()
             }
             .disabled(model.isChoosingRegion || !model.hasScreenAccess || model.selectedDisplay == nil)
         }
@@ -155,7 +146,7 @@ struct ContentView: View {
             Text("How to use it")
                 .font(.headline)
             Text("1. Grant screen access.")
-            Text("2. Choose the display and drag a region.")
+            Text("2. Choose the display, then drag directly on the overlay.")
             Text("3. Share the “Share Crop” window in your meeting tool.")
         }
         .font(.system(size: 13))

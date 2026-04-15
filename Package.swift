@@ -19,6 +19,7 @@ let package = Package(
                 "README.md",
                 "docs",
                 "dist",
+                "plans",
                 "script"
             ],
             sources: [
