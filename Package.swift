@@ -20,7 +20,8 @@ let package = Package(
                 "docs",
                 "dist",
                 "plans",
-                "script"
+                "script",
+                "Tests"
             ],
             sources: [
                 "App",
@@ -36,6 +37,11 @@ let package = Package(
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("ScreenCaptureKit")
             ]
+        ),
+        .testTarget(
+            name: "ScreenShareTests",
+            dependencies: ["ScreenShare"],
+            path: "Tests"
         )
     ]
 )

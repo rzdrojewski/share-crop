@@ -132,13 +132,14 @@ final class OverlaySelectionWindowController: NSWindowController, NSWindowDelega
 
 @MainActor
 final class OverlaySelectionSession: ObservableObject {
-    private let minimumSelectionSize: CGFloat = 24
     private let display: DisplayInfo
     private let initialSelection: CaptureRegion?
+    private var didLoadInitialSelection = false
+    private var geometry = OverlaySelectionGeometry()
 
-    @Published private(set) var dragStart: CGPoint?
-    @Published private(set) var currentPoint: CGPoint?
     @Published private(set) var canvasSize: CGSize = .zero
+    @Published private(set) var selectionRectInView: CGRect = .zero
+    @Published private(set) var handleIndicators: [OverlaySelectionHandleInfo] = []
 
     init(display: DisplayInfo, initialSelection: CaptureRegion? = nil) {
         self.display = display
@@ -149,22 +150,10 @@ final class OverlaySelectionSession: ObservableObject {
         }
     }
 
-    var selectionRectInView: CGRect {
-        guard let dragStart, let currentPoint else { return .zero }
-
-        return CGRect(
-            x: min(dragStart.x, currentPoint.x),
-            y: min(dragStart.y, currentPoint.y),
-            width: abs(currentPoint.x - dragStart.x),
-            height: abs(currentPoint.y - dragStart.y)
-        )
-    }
-
     var confirmedSelection: OverlaySelectionWindowController.ConfirmedSelection? {
         let selection = selectionRectInView
         guard
-            selection.width >= minimumSelectionSize,
-            selection.height >= minimumSelectionSize,
+            geometry.canConfirm,
             canvasSize.width > 0,
             canvasSize.height > 0
         else {
@@ -183,35 +172,39 @@ final class OverlaySelectionSession: ObservableObject {
     }
 
     var canConfirm: Bool {
-        confirmedSelection != nil
+        geometry.canConfirm
     }
 
     func updateCanvasSize(_ size: CGSize) {
         canvasSize = size
+        geometry.canvasSize = size
 
-        guard dragStart == nil, currentPoint == nil else { return }
-        guard let initialSelection else { return }
+        guard !didLoadInitialSelection else {
+            publishGeometryState()
+            return
+        }
 
-        let selection = rectInView(for: initialSelection.globalRect, canvasHeight: size.height)
-        dragStart = selection.origin
-        currentPoint = CGPoint(x: selection.maxX, y: selection.maxY)
+        if let initialSelection {
+            geometry.setSelectionRect(rectInView(for: initialSelection.globalRect, canvasHeight: size.height))
+        }
+
+        didLoadInitialSelection = true
+        publishGeometryState()
     }
 
-    func beginOrUpdateDrag(start startPoint: CGPoint, current point: CGPoint) {
-        dragStart = clamped(startPoint)
-        currentPoint = clamped(point)
+    func beginInteraction(at point: CGPoint) {
+        geometry.beginInteraction(at: point)
+        publishGeometryState()
     }
 
-    func finishDrag(at point: CGPoint) {
-        guard dragStart != nil else { return }
-        currentPoint = clamped(point)
+    func updateInteraction(to point: CGPoint) {
+        geometry.updateInteraction(to: point)
+        publishGeometryState()
     }
 
-    private func clamped(_ point: CGPoint) -> CGPoint {
-        CGPoint(
-            x: min(max(point.x, 0), canvasSize.width),
-            y: min(max(point.y, 0), canvasSize.height)
-        )
+    func endInteraction(at point: CGPoint) {
+        geometry.endInteraction(at: point)
+        publishGeometryState()
     }
 
     private func rectInView(for globalRect: CGRect, canvasHeight: CGFloat) -> CGRect {
@@ -221,5 +214,10 @@ final class OverlaySelectionSession: ObservableObject {
             width: globalRect.width,
             height: globalRect.height
         ).standardized
+    }
+
+    private func publishGeometryState() {
+        selectionRectInView = geometry.selectionRect
+        handleIndicators = geometry.handles
     }
 }

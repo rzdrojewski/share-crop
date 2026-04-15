@@ -20,15 +20,16 @@ struct RegionSelectionOverlayView: View {
                 session.updateCanvasSize(newSize)
             }
             .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            session.beginOrUpdateDrag(
-                                start: value.startLocation,
-                                current: value.location
-                            )
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if value.translation == .zero {
+                            session.beginInteraction(at: value.startLocation)
                         }
+
+                        session.updateInteraction(to: value.location)
+                    }
                     .onEnded { value in
-                        session.finishDrag(at: value.location)
+                        session.endInteraction(at: value.location)
                     }
             )
         }
@@ -46,6 +47,18 @@ struct RegionSelectionOverlayView: View {
                     .frame(width: selection.width, height: selection.height)
                     .position(x: selection.midX, y: selection.midY)
                     .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
+
+                ForEach(Array(session.handleIndicators.enumerated()), id: \.offset) { _, indicator in
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 12, height: 12)
+                        .overlay(
+                            Circle()
+                                .stroke(.black.opacity(0.45), lineWidth: 1)
+                        )
+                        .position(indicator.center)
+                        .shadow(color: .black.opacity(0.25), radius: 8, y: 2)
+                }
             }
         }
         .background(Color.clear)

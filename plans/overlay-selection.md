@@ -63,11 +63,11 @@ Add the polished editing model for the overlay: moving the current region, resiz
 
 ### Acceptance criteria
 
-- [ ] The selection can be moved by dragging within the selected region.
-- [ ] The selection can be resized from all four corners and all four side midpoints.
-- [ ] Visible handles communicate the available resize affordances.
-- [ ] Invalid sizes below the minimum threshold cannot be confirmed.
-- [ ] Geometry and hit-testing rules are expressed through a narrow interface suitable for isolated automated tests.
+- [x] The selection can be moved by dragging within the selected region.
+- [x] The selection can be resized from all four corners and all four side midpoints.
+- [x] Visible handles communicate the available resize affordances.
+- [x] Invalid sizes below the minimum threshold cannot be confirmed.
+- [x] Geometry and hit-testing rules are expressed through a narrow interface suitable for isolated automated tests.
 
 ---
 
