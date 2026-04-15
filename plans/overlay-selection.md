@@ -98,7 +98,9 @@ Harden the new selection path with focused automated coverage for geometry/state
 
 ### Acceptance criteria
 
-- [ ] Automated tests cover creation, move, resize, clamping, minimum-size enforcement, confirmation eligibility, and cancel-preserves-old-selection behavior.
-- [ ] Manual verification covers overlay presentation on the selected display, keyboard confirm/cancel behavior, and visual correctness of dimming and handles.
-- [ ] Manual verification covers end-to-end selection through capture and share-window usage after both first-time selection and retake.
-- [ ] Any stability issues uncovered during the earlier phases are resolved or documented before the feature is considered complete.
+- [x] Automated tests cover creation, move, resize, clamping, minimum-size enforcement, confirmation eligibility, and cancel-preserves-old-selection behavior.
+- [x] Manual verification covers overlay presentation on the selected display, keyboard confirm/cancel behavior, and visual correctness of dimming and handles.
+- [x] Manual verification covers end-to-end selection through capture and share-window usage after both first-time selection and retake.
+- [x] Any stability issues uncovered during the earlier phases are resolved or documented before the feature is considered complete.
+
+Progress note: automated coverage includes overlay completion state transitions in addition to geometry rules. Manual verification was completed by the user using the checklist in `docs/manual-overlay-verification.md`, and no additional stability issues were reported.
