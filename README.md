@@ -49,6 +49,12 @@ Verify the packaged app launches:
 ./script/build_and_run.sh --verify
 ```
 
+Run the repo CI checks locally:
+
+```bash
+./script/ci.sh
+```
+
 ## How To Use
 
 1. Launch the app.
@@ -68,6 +74,24 @@ There is a built-in smoke-test mode for validating the app without depending on 
 ```
 
 This mode uses synthetic display content and writes a captured frame to `dist/smoke-frame.png` when successful.
+
+## CI And Releases
+
+GitHub Actions now provides:
+
+- pull request and `main` branch CI on `macos-latest`
+- tag-triggered unsigned GitHub Releases for tags matching `vX.Y.Z`
+- auto-generated GitHub Release notes
+
+Build the unsigned release DMG locally with:
+
+```bash
+./script/package_release.sh --version 0.1.0 --artifact-version v0.1.0
+```
+
+Phase 1 release artifacts are intentionally unsigned. They are suitable for the current free setup, but users should expect macOS Gatekeeper warnings until `Developer ID` signing and notarization are added later.
+
+Release workflow details live in [docs/releasing.md](./docs/releasing.md).
 
 ## Current Constraints
 

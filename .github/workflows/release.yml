@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Package unsigned DMG
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          ./script/package_release.sh \
+            --version "$VERSION" \
+            --artifact-version "$TAG_NAME" \
+            --build-version "$VERSION"
+
+      - name: Publish GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          DMG_PATH="dist/release/ScreenShare-${TAG_NAME}-unsigned.dmg"
+          gh release create "$TAG_NAME" "$DMG_PATH" \
+            --title "$TAG_NAME" \
+            --generate-notes
